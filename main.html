@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguaDuo — Dynamic Sidebar</title>
+<link rel="stylesheet" href="yea.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="menu">
+    <button data-page="grammar">Grammar</button>
+    <button data-page="informal">Informal</button>
+    <button data-page="games">Games</button>
+    <button data-page="proverbs">Proverbs</button>
+    <button data-page="qa">Q&amp;A</button>
+  </div>
+  <div class="selectors">
+    <select id="langSelect">
+      <option value="in-en" selected>Indonesian → English</option>
+      <option value="en-in">English → Indonesian</option>
+      <option value="tr-en">Turkish → English</option>
+      <option value="en-tr">English → Turkish</option>
+      <option value="tr-in">Turkish → Indonesian</option>
+      <option value="in-tr">Indonesian → Turkish</option>
+    </select>
+
+    <select id="levelSelect">
+      <option value="a1" selected>A1</option>
+      <option value="a2">A2</option>
+      <option value="b1">B1</option>
+      <option value="b2">B2</option>
+      <option value="c1">C1</option>
+      <option value="c2">C2</option>
+    </select>
+  </div>
+</div>
+
+<div class="page">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content" id="content">
+    <h2>Loading lessons...</h2>
+  </main>
+</div>
+
+<script>
+const sidebar = document.getElementById("sidebar");
+const content = document.getElementById("content");
+
+const baseURL = "https://raw.githubusercontent.com/Ayamet/test/main/";
+
+function loadLessons() {
+  const lang = document.getElementById("langSelect").value;
+  const level = document.getElementById("levelSelect").value;
+  const url = `${baseURL}${lang}-${level}.json`;
+
+  console.log("Fetching:", url);
+
+  fetch(url)
+    .then(res => {
+      if (!res.ok) throw new Error("Network error");
+      return res.json();
+    })
+    .then(data => {
+      renderSidebar(data);
+    })
+    .catch(err => {
+      console.error("Error:", err);
+      content.innerHTML = `<p style="color:red;">Failed to load lessons.</p>`;
+    });
+}
+
+function renderSidebar(topics) {
+  sidebar.innerHTML = "";
+  content.innerHTML = `<h2>Select a lesson</h2>`;
+
+  topics.forEach((topic, topicIndex) => {
+    const group = document.createElement("div");
+    group.classList.add("toc-group");
+
+    const h4 = document.createElement("h4");
+    h4.textContent = topic.title;
+
+    const ul = document.createElement("ul");
+    ul.classList.add("toc-list");
+
+    topic.subs.forEach((sub, subIndex) => {
+      const li = document.createElement("li");
+      li.textContent = sub.title;
+
+      li.addEventListener("click", () => {
+        document.querySelectorAll(".toc-list li").forEach(x => x.classList.remove("active"));
+        li.classList.add("active");
+        content.innerHTML = `<h1>${topic.title}</h1><h2>${sub.title}</h2>${sub.content}`;
+      });
+
+      ul.appendChild(li);
+    });
+
+    h4.addEventListener("click", () => ul.classList.toggle("show"));
+    group.appendChild(h4);
+    group.appendChild(ul);
+    sidebar.appendChild(group);
+  });
+
+  if (topics.length > 0 && topics[0].subs.length > 0) {
+    const firstList = sidebar.querySelector("ul.toc-list");
+    firstList.classList.add("show");
+    firstList.querySelector("li").click();
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  loadLessons();
+});
+
+document.getElementById("langSelect").addEventListener("change", loadLessons);
+document.getElementById("levelSelect").addEventListener("change", loadLessons);
+</script>
+</body>
+</html>
