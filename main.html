@@ -6,13 +6,17 @@
 <title>Trindolearn — Dynamic Sidebar</title>
 <link rel="stylesheet" href="yea.css">
 <style>
-  /* minimal styles for completed mark & notification */
-  .completed::after { content: " ✅"; color: green; font-weight: bold; }
+  li.completed {
+  background-color: #4CAF50; /* green */
+  color: white; /* optional, better contrast */
+}
+
   #notif { 
     position: fixed; top: 10px; right: 10px; 
-    background: #0a0; color: #fff; padding: 8px 12px; border-radius: 5px; 
+    background: rgb(255, 238, 0); color: #fff; padding: 8px 12px; border-radius: 5px; 
     display: none; font-family: sans-serif;
   }
+ 
 </style>
 </head>
 <body>
@@ -25,7 +29,7 @@
     <button data-page="proverbs">Proverbs</button>
     <button data-page="qa">Q&amp;A</button>
   </div>
-   <div class="progress-container">
+  <div class="progress-container">
     <div class="progress-bar" id="progressBar"></div>
   </div>
   <div class="selectors">
@@ -63,13 +67,12 @@
 </div>
 
 <div id="notif"></div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-// --------------------
 // Firebase config
-// --------------------
 const firebaseConfig = {
   apiKey: "AIzaSyDLJru0XZyogoMRc53crip0ic9oAWyMiGQ",
   authDomain: "trindolearn.firebaseapp.com",
@@ -85,7 +88,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // --------------------
-// Cookie helpers
+// Cookies
 // --------------------
 function setCookie(name, value, days) {
   const d = new Date();
@@ -99,7 +102,7 @@ function getCookie(name) {
 }
 
 // --------------------
-// Notification helper
+// Notification
 // --------------------
 function showNotif(msg, duration=1500) {
   const n = document.getElementById("notif");
@@ -110,7 +113,7 @@ function showNotif(msg, duration=1500) {
 }
 
 // --------------------
-// User login & cookies
+// Login
 // --------------------
 let currentUser = getCookie("userid");
 let nickname = getCookie("nickname");
@@ -135,14 +138,12 @@ if (loginBtn) {
       document.getElementById("loginBox").style.display = "none";
       loginStatusEl.textContent = `Logged in as ${nickname}`;
       showNotif(`Welcome, ${nickname}!`);
-    } else {
-      showNotif("Please enter a nickname!");
-    }
+    } else showNotif("Please enter a nickname!");
   });
 }
 
 // --------------------
-// Lessons & sidebar
+// Lessons & Sidebar
 // --------------------
 const sidebar = document.getElementById("sidebar");
 const content = document.getElementById("content");
@@ -181,14 +182,12 @@ function renderSidebar(topics, lang, level) {
         document.querySelectorAll(".toc-list li").forEach(x => x.classList.remove("active"));
         li.classList.add("active");
         content.innerHTML = `<h1>${topic.title}</h1><h2>${sub.title}</h2>${sub.content}`;
-
-        // mark completed & save progress
         li.classList.add("completed");
+
         const path = `progress/${currentUser}/${lang}/${level}/${topic.title}`;
         await update(ref(db, path), { [sub.title]: true });
-        
         showNotif(`Completed: ${sub.title}`);
-        updateProgressBar(lang, level); // <-- update progress bar after marking
+        updateProgressBar(lang, level);
       });
 
       ul.appendChild(li);
@@ -206,18 +205,16 @@ function renderSidebar(topics, lang, level) {
     firstList.querySelector("li").click();
   }
 
-  // Load previous progress & update bar
   loadProgress(lang, level).then(() => updateProgressBar(lang, level));
 }
 
 // --------------------
-// Progress bar update
+// Progress bar
 // --------------------
 async function loadProgress(lang, level) {
   const path = `progress/${currentUser}/${lang}/${level}`;
   const snapshot = await get(ref(db, path));
   if (!snapshot.exists()) return;
-
   const data = snapshot.val();
   sidebar.querySelectorAll("li").forEach(li => {
     const topic = li.parentElement.previousSibling.textContent;
@@ -245,14 +242,42 @@ function updateProgressBar(lang, level) {
 }
 
 // --------------------
+// Topbar menu navigation
+// --------------------
+document.querySelectorAll(".menu button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const page = btn.dataset.page;
+
+    if (page === "games") {
+      window.open(
+        "https://www.youtube.com/watch?v=gUQG8CL2rfY&list=RDgUQG8CL2rfY&start_radio=1",
+        "_blank"
+      );
+      return;
+    }
+
+    const content = document.getElementById("content");
+    const sidebar = document.getElementById("sidebar");
+
+    if (page === "grammar") {
+      sidebar.style.display = "block"; // show sidebar
+      loadLessons(); // load lessons
+    } else {
+      sidebar.style.display = "none"; // hide sidebar
+      content.innerHTML = `<h2>${btn.textContent}</h2><p>Page under construction...</p>`;
+    }
+  });
+});
+
+
+// --------------------
 // Event listeners
 // --------------------
 window.addEventListener("DOMContentLoaded", () => loadLessons());
 document.getElementById("langSelect").addEventListener("change", loadLessons);
 document.getElementById("levelSelect").addEventListener("change", loadLessons);
+
 </script>
 
 </body>
 </html>
-
-
