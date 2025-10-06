@@ -25,6 +25,9 @@
     <button data-page="proverbs">Proverbs</button>
     <button data-page="qa">Q&amp;A</button>
   </div>
+   <div class="progress-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
   <div class="selectors">
     <select id="langSelect">
       <option value="in-en" selected>Indonesian → English</option>
@@ -92,6 +95,26 @@ function setCookie(name, value, days) {
 function getCookie(name) {
   const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
   return match ? match[2] : null;
+}
+//sth
+
+  function updateProgressBar(lang, level) {
+  const path = `progress/${currentUser}/${lang}/${level}`;
+  get(ref(db, path)).then(snapshot => {
+    if (!snapshot.exists()) {
+      document.getElementById("progressBar").style.width = '0%';
+      return;
+    }
+    const data = snapshot.val();
+    let total = 0, done = 0;
+    sidebar.querySelectorAll("li").forEach(li => {
+      total++;
+      const topic = li.parentElement.previousSibling.textContent;
+      if (data[topic] && data[topic][li.textContent]) done++;
+    });
+    const percent = total === 0 ? 0 : Math.round(done / total * 100);
+    document.getElementById("progressBar").style.width = percent + '%';
+  });
 }
 
 // --------------------
@@ -228,3 +251,4 @@ document.getElementById("levelSelect").addEventListener("change", loadLessons);
 
 </body>
 </html>
+
