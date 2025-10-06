@@ -3,10 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LinguaDuo — Dynamic Sidebar</title>
+<title>Trindolearn — Dynamic Sidebar</title>
 <link rel="stylesheet" href="yea.css">
+<style>
+  /* minimal styles for completed mark & notification */
+  .completed::after { content: " ✅"; color: green; font-weight: bold; }
+  #notif { 
+    position: fixed; top: 10px; right: 10px; 
+    background: #0a0; color: #fff; padding: 8px 12px; border-radius: 5px; 
+    display: none; font-family: sans-serif;
+  }
+</style>
 </head>
 <body>
+
 <div class="topbar">
   <div class="menu">
     <button data-page="grammar">Grammar</button>
@@ -36,6 +46,12 @@
   </div>
 </div>
 
+<div id="loginBox">
+  <input type="text" id="nicknameInput" placeholder="Pick a nickname">
+  <button id="loginBtn">Login</button>
+  <span id="loginStatus"></span>
+</div>
+
 <div class="page">
   <aside class="sidebar" id="sidebar"></aside>
   <main class="content" id="content">
@@ -43,10 +59,89 @@
   </main>
 </div>
 
-<script>
+<div id="notif"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyDLJru0XZyogoMRc53crip0ic9oAWyMiGQ",
+  authDomain: "trindolearn.firebaseapp.com",
+  projectId: "trindolearn",
+  databaseURL: "https://trindolearn-default-rtdb.asia-southeast1.firebasedatabase.app",
+  storageBucket: "trindolearn.firebasestorage.app",
+  messagingSenderId: "68398667645",
+  appId: "1:68398667645:web:f3672ac465818b97589e14",
+  measurementId: "G-X7LGZRMSBR"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// --------------------
+// Cookie helpers
+// --------------------
+function setCookie(name, value, days) {
+  const d = new Date();
+  d.setTime(d.getTime() + days*24*60*60*1000);
+  document.cookie = `${name}=${value};path=/;expires=${d.toUTCString()};SameSite=Lax`;
+}
+
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? match[2] : null;
+}
+
+// --------------------
+// Notification helper
+// --------------------
+function showNotif(msg, duration=1500) {
+  const n = document.getElementById("notif");
+  if (!n) return;
+  n.textContent = msg;
+  n.style.display = "block";
+  setTimeout(()=>{ n.style.display="none"; }, duration);
+}
+
+// --------------------
+// User login & cookies
+// --------------------
+let currentUser = getCookie("userid");
+let nickname = getCookie("nickname");
+
+if (!currentUser) {
+  currentUser = "user_" + Math.floor(Math.random()*1000000);
+  setCookie("userid", currentUser, 365);
+}
+
+const loginStatusEl = document.getElementById("loginStatus");
+if (nickname) loginStatusEl.textContent = `Logged in as ${nickname}`;
+else loginStatusEl.textContent = `Logged in as ${currentUser}`;
+
+const loginBtn = document.getElementById("loginBtn");
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    const nickInput = document.getElementById("nicknameInput");
+    const nick = nickInput.value.trim();
+    if (nick) {
+      nickname = nick;
+      setCookie("nickname", nickname, 365);
+      document.getElementById("loginBox").style.display = "none";
+      loginStatusEl.textContent = `Logged in as ${nickname}`;
+      showNotif(`Welcome, ${nickname}!`);
+    } else {
+      showNotif("Please enter a nickname!");
+    }
+  });
+}
+
+// --------------------
+// Lessons & sidebar
+// --------------------
 const sidebar = document.getElementById("sidebar");
 const content = document.getElementById("content");
-
 const baseURL = "https://raw.githubusercontent.com/Ayamet/test/main/";
 
 function loadLessons() {
@@ -54,27 +149,17 @@ function loadLessons() {
   const level = document.getElementById("levelSelect").value;
   const url = `${baseURL}${lang}-${level}.json`;
 
-  console.log("Fetching:", url);
-
   fetch(url)
-    .then(res => {
-      if (!res.ok) throw new Error("Network error");
-      return res.json();
-    })
-    .then(data => {
-      renderSidebar(data);
-    })
-    .catch(err => {
-      console.error("Error:", err);
-      content.innerHTML = `<p style="color:red;">Failed to load lessons.</p>`;
-    });
+    .then(res => { if(!res.ok) throw new Error("Network error"); return res.json(); })
+    .then(data => { renderSidebar(data, lang, level); })
+    .catch(err => { content.innerHTML = `<p style="color:red;">Failed to load lessons.</p>`; });
 }
 
-function renderSidebar(topics) {
+function renderSidebar(topics, lang, level) {
   sidebar.innerHTML = "";
   content.innerHTML = `<h2>Select a lesson</h2>`;
 
-  topics.forEach((topic, topicIndex) => {
+  topics.forEach(topic => {
     const group = document.createElement("div");
     group.classList.add("toc-group");
 
@@ -84,14 +169,20 @@ function renderSidebar(topics) {
     const ul = document.createElement("ul");
     ul.classList.add("toc-list");
 
-    topic.subs.forEach((sub, subIndex) => {
+    topic.subs.forEach(sub => {
       const li = document.createElement("li");
       li.textContent = sub.title;
 
-      li.addEventListener("click", () => {
+      li.addEventListener("click", async () => {
         document.querySelectorAll(".toc-list li").forEach(x => x.classList.remove("active"));
         li.classList.add("active");
         content.innerHTML = `<h1>${topic.title}</h1><h2>${sub.title}</h2>${sub.content}`;
+
+        // mark completed & save progress
+        li.classList.add("completed");
+        const path = `progress/${currentUser}/${lang}/${level}/${topic.title}`;
+        await update(ref(db, path), { [sub.title]: true });
+        showNotif(`Completed: ${sub.title}`);
       });
 
       ul.appendChild(li);
@@ -108,14 +199,32 @@ function renderSidebar(topics) {
     firstList.classList.add("show");
     firstList.querySelector("li").click();
   }
+
+  loadProgress(lang, level);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  loadLessons();
-});
+// --------------------
+// Load previous progress
+// --------------------
+async function loadProgress(lang, level) {
+  const path = `progress/${currentUser}/${lang}/${level}`;
+  const snapshot = await get(ref(db, path));
+  if (!snapshot.exists()) return;
 
+  const data = snapshot.val();
+  sidebar.querySelectorAll("li").forEach(li => {
+    const topic = li.parentElement.previousSibling.textContent;
+    if (data[topic] && data[topic][li.textContent]) li.classList.add("completed");
+  });
+}
+
+// --------------------
+// Event listeners
+// --------------------
+window.addEventListener("DOMContentLoaded", () => loadLessons());
 document.getElementById("langSelect").addEventListener("change", loadLessons);
 document.getElementById("levelSelect").addEventListener("change", loadLessons);
 </script>
+
 </body>
 </html>
