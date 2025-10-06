@@ -275,6 +275,27 @@ button:hover {
   .toc-list li {font-size: 0.9rem;}
 }
 
+/* Progress bar container (inside topbar) */
+.progress-container {
+  width: 200px;         /* adjust width */
+  height: 10px;         /* bar height */
+  background-color: #ddd; /* light gray background */
+  border-radius: 5px;
+  overflow: hidden;
+  margin-left: 20px;    /* space from other topbar items */
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* The actual progress bar */
+.progress-bar {
+  height: 100%;
+  width: 0%;           /* start empty */
+  background-color: #4caf50; /* green */
+  border-radius: 5px 0 0 5px;
+  transition: width 0.5s ease;
+}
+
 .sidebar,
 .content {
   transition: all 0.3s ease-in-out;
@@ -297,3 +318,4 @@ button, a {
   display: block;
   height: 2rem;
 }
+
